@@ -1,4 +1,4 @@
-# Lab 1: Problem: Programmatic Documentation
+# Problem: Programmatic Documentation
 
 
 ### Lab 1
