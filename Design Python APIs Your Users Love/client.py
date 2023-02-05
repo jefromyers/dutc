@@ -7,14 +7,14 @@ from notifications import notify
 seed(0)
 
 
-@notify("Must use new datasouce by", by=date(2023, 3, 1))
+@notify("Must use new datasouce by", by=date(2023, 3, 1), enforce=True)
 def acquire():
     print(f"Acquiring data")
     data = [choice([*ascii_lowercase]) for _ in range(10)]
     return data
 
 
-@notify("Date format is dd-mm-yyyy")
+@notify("Date format has changed and is now is dd-mm-yyyy")
 def process(data):
     print(f"Processing {data}")
     return [*reversed(data)]
