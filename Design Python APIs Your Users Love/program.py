@@ -1,34 +1,34 @@
 from time import sleep
 from asyncio import run
+
 import annotate
 
-@annotate.func(group="Group A")
-def f(a):
-    sleep(.2)
-    return "func"
 
+@annotate.async_func(group="Report")
+async def fetch():
+    print("Acquiring data")
+    return "data"
 
-@annotate.async_func("Group B")
-async def af(a):
-    return "async func"
+@annotate.func(group="Report")
+def process(data):
+    print("Cleaning data")
+    return "clean data"
 
-@annotate.async_bugme(groups=["Group A", "Group B", "Group D"])
+@annotate.async_func(group="Report")
+async def make_report(data):
+    print("Creating data")
+    return "awesome report"
+
+@annotate.async_bugme(groups=["Report"])
 async def go():
+    """ Mock """
 
-    f("hi")
-    f("dee")
-    f("hoo")
-    await af("hi")
+    data = await fetch() 
+    data = process(data)
+    report = await make_report(data)
 
-    with annotate.block(group="Group C"):
-        for _ in range(10_000):
-            ...
-
-    async with annotate.async_block(group="Group D"):
-        for _ in range(10_000):
-            ...
-
-    # print(annotate.GROUPS)    
+    with annotate.block(group="Report", name="Delivery"):
+        print("Delivering report")
 
 if __name__ == "__main__":
     run(go())

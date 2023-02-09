@@ -19,9 +19,6 @@ def func(group):
                 "delta": None,
             })
 
-            print(f"Annotating {group}")
-            print(f"{args}, {kwargs}")
-
             before = perf_counter()
 
             r = f(*args, **kwargs)
@@ -33,7 +30,6 @@ def func(group):
                 if gfunc['id'] == id(f):
                     gfunc["delta"] = delta
 
-            # print(delta)
             return r
 
         return wrapper
@@ -54,8 +50,6 @@ def async_func(group):
                 "delta": None,
             })
 
-            print(f"Annotating {group}")
-            print(f"{args}, {kwargs}")
             before = perf_counter()
             r = await f(*args, **kwargs)
             after = perf_counter()
@@ -65,7 +59,6 @@ def async_func(group):
                 if gfunc['id'] == id(f):
                     gfunc["delta"] = delta
 
-            # print(delta)
             return r
 
         return wrapper
@@ -73,22 +66,34 @@ def async_func(group):
     return dec
 
 @contextmanager
-def block(group):
-    print(f"Annotating Block {group}")
+def block(group, name):
+    GROUPS[group].append({
+        "id": name,
+        "name": "Block", 
+        "delta": None,
+    })
     before = perf_counter()
     yield
     after = perf_counter()
     delta = f"\N{mathematical bold capital delta}t: {after - before:.4f}s"
-    # print(delta)
+    for gfunc in GROUPS[group]:
+        if gfunc['id'] == name:
+            gfunc["delta"] = delta
 
 @asynccontextmanager
-async def async_block(group):
-    print(f"Annotating Block {group}")
+async def async_block(group, name):
+    GROUPS[group].append({
+        "id": name,
+        "name": "Block", 
+        "delta": None,
+    })
     before = perf_counter()
     yield
     after = perf_counter()
     delta = f"\N{mathematical bold capital delta}t: {after - before:.4f}s"
-    # print(delta)
+    for gfunc in GROUPS[group]:
+        if gfunc['id'] == name:
+            gfunc["delta"] = delta
 
 
 def async_bugme(groups):
@@ -97,8 +102,13 @@ def async_bugme(groups):
         async def wrapper(*args, **kwargs):
             r = await f(*args, **kwargs)
             for group in groups:
+                print("")
+                print(f"--- {group} ---")
                 for gfunc in GROUPS[group]:
-                    print(f"{gfunc['name']}({gfunc['args']},{gfunc['kwargs']}) {gfunc['delta']}")
+                    if gfunc['name'] == "Block":
+                        print(f"{gfunc['id']} {gfunc['delta']}")
+                    else:
+                        print(f"{gfunc['name']}({gfunc['args']},{gfunc['kwargs']}) {gfunc['delta']}")
             return r
         return wrapper
     return dec
