@@ -1,5 +1,7 @@
 ### Rando ###
 data/
+__pycache__/
+.python-version
 
 ### Linux ###
 *~
