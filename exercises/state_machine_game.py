@@ -1,9 +1,23 @@
+import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from random import Random
-from typing import Dict, Tuple
+from typing import Dict
+
+from rich.logging import RichHandler
+
+level = logging.DEBUG
+
+logging.basicConfig(
+    level=level,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
+
+logger = logging.getLogger(__name__)
 
 
 def get_word():
@@ -12,7 +26,7 @@ def get_word():
         wordlist = {w for w in wordlist if w.isalpha() and w.islower()}
 
     rnd = Random(0)
-    answer = rnd.choice(sorted(wordlist))  # microcosmic on a mac, fitting!
+    answer = rnd.choice(sorted(wordlist))  # supermarket on a Ubuntu
     return answer
 
 
@@ -36,7 +50,6 @@ class Message(Enum):
 class Player:
     name: str
     tires: int = 10
-    # _messages: List[Message] = field(default_factory=list)
 
     def __str__(self):
         return f"{self.name} - {self.tires} tries left"
@@ -65,14 +78,15 @@ class Game:
         self.state = State(answer=answer)
 
     def _validate_action(self, action):
+        logger.debug(f"validating action {action}")
         if not isinstance(action, Action):
-            print("not an action")
+            logger.error("not an action")
             return False
         if not isinstance(action.message, Message):
-            print("not a message")
+            logger.error("not a message")
             return False
         if not isinstance(action.player, Player):
-            print("not a player")
+            logger.error("not a player")
             return False
         return True
 
@@ -84,10 +98,9 @@ class Game:
         return False
 
     def process(self, action):
-        # TODO: Fix
-        # if not self._validate_action(action):
-        #     self.state.preformed = "invalid action"
-        #     return
+        if not self._validate_action(action):
+            self.state.preformed = "invalid action"
+            return
 
         match action.message:
             case Message.REQUEST:
@@ -120,9 +133,10 @@ class Game:
                     )
                     return
                 if action.message.data["word"] == self.state.answer:
+                    logger.debug(f"{action.player.name} won!")
                     self.state.winner = action.player
                     self.state.preformed = f"{action.player.name} won!"
-                    return
+                    return self.state
                 if action.message.data["word"] in self.state.guesses:
                     self.state.preformed = (
                         f"{action.player.name} already guessed this word"
@@ -138,19 +152,21 @@ class Game:
     def simulate(self):
         while True:
             action = yield self.state
+            if action is None:
+                continue
             self.process(action)
 
 
 if __name__ == "__main__":
-    i = Player("Iris")
-    d = Player("Dad")
+    iris = Player("Iris")
+    dad = Player("Dad")
     actions = deque(
         [
-            Action(i, Message.REQUEST),
-            Action(d, Message.REQUEST),
-            Action(i, Message.CONFIRM),
-            Action(d, Message.CONFIRM),
-            Action(d, Message.GUESS.with_data({"word": "microcosmic"})),
+            Action(iris, Message.REQUEST),
+            Action(dad, Message.REQUEST),
+            Action(iris, Message.CONFIRM),
+            Action(dad, Message.CONFIRM),
+            Action(dad, Message.GUESS.with_data({"word": "supermarket"})),
         ]
     )
     answer = get_word()
@@ -158,7 +174,10 @@ if __name__ == "__main__":
     for _ in game:
         try:
             resp = game.send(actions.popleft())
-            print(resp)
+            logger.info(resp)
+            if resp.winner:
+                logger.info(f"{resp.winner.name} won 🎉🎉🎉")
+                exit(0)
         except IndexError:
             break
         except StopIteration:
