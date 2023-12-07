@@ -79,4 +79,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # nc localhost 4227 to play
     main()
