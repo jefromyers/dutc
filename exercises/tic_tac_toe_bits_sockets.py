@@ -17,6 +17,14 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 
+BOARD_TEMPLATE = """
+ {0} | {1} | {2}
+-----------
+ {3} | {4} | {5}
+-----------
+ {6} | {7} | {8}\n
+""".format
+
 
 class Conditions(Enum):
     WON = "won"
@@ -37,7 +45,8 @@ class Rules:
                 return True
         return False
 
-    # XXX: Maybe we could abstract other conditions.
+    # XXX: It would be neat to be able to pass arbitrary function in that were
+    # part of the rules
     def cat(self, boards: List[int]) -> bool:
         combined = 0
         for board in boards:
@@ -68,9 +77,11 @@ class Player:
 class Game:
     rules: Rules
     min_players: int = 2
-    max_players: int = 3
+    max_players: int = 3  # XXX: Maybe for future games with more then 2 players
     _players: list = field(default_factory=list)
-    _winner: str = ""  # or we could do Player and make a Cat player
+    _winner: str | None = (
+        None  # XXX: We should probably use a Player & make Cat a player
+    )
 
     def _move(self, position: int, player_board: int) -> int:
         if position < 1 or position > 9:
@@ -99,30 +110,24 @@ class Game:
             self._players.append(player)
             logging.info(f"Player {len(self._players)} connected from {player.addr}")
             if len(self._players) >= self.min_players:
-                logging.info("Minimum number of players reached. We could play")
+                logging.info("Minimum number of players reached. Lets playn now.")
                 break
 
-        # XXX: Time to play
-        logging.info("Time to play")
         self.play()
+        server.close()
 
     def play(self) -> None:
         for pn in cycle(range(len(self._players))):
             player = self._players[pn]
-            msg = f"{player.name}'s turn\n"
+            msg = f"{player.name}'s turn\nCurrent board:\n{self}"
             logging.info(msg)
             self.message(msg)
-
-            # TODO: Render the board for the player
-            logging.info(self)
-            player.conn.sendall(str(self).encode())
-            pos = int(player.conn.recv(1024).decode())
             try:
-                board = player._board
-                player._board = self._move(pos, board)
-            except ValueError as e:
-                # XXX: Maybe we messge the player here?
-                msg = f"Invalid move: {e}"
+                pos = int(player.conn.recv(1024).decode())
+                player._board = self._move(pos, player._board)
+            except Exception as e:
+                # XXX: We could imrpove this error handling
+                msg = f"Invalid move by {player.name}: {e}"
                 self.message(msg)
                 logging.info(msg)
                 continue
@@ -150,14 +155,6 @@ class Game:
         return None
 
     def __str__(self) -> str:
-        temp = """
-         {0} | {1} | {2}
-        -----------
-         {3} | {4} | {5}
-        -----------
-         {6} | {7} | {8}\n
-        """.format
-
         symbols = []
         for pos in range(1, 10):
             symbol = " "
@@ -167,14 +164,14 @@ class Game:
                     break
             symbols.append(symbol)
 
-        return temp(*symbols)
+        return BOARD_TEMPLATE(*symbols)
 
     def message(self, msg: str) -> None:
         for player in self._players:
             player.conn.sendall(msg.encode())
 
     def end_game(self) -> None:
-        msg = f"Game over! {self._winner} won!\n"
+        msg = f"Game over! {self._winner} won!\n{self}\nThanks for playing!\n"
         logging.info(msg)
         self.message(msg)
 
@@ -183,7 +180,8 @@ class Game:
 
 
 if __name__ == "__main__":
-    # TODO: Print out the board and numbers or maybe rules?
+    # TODO: We should print out the rules, the board numbers, etc...
+    # nc localhost 4227 to play
     winning_positions = [
         # rows
         0b111000000,
